@@ -58,10 +58,10 @@ def download(url: str, path: Path):
 
 def extract_names():
     source = SKETCH.read_text(encoding="utf-8")
-    match = re.search(r"let\\s+domain\\s*=\\s*\\{(.*?)\\n\\s*\\};", source, re.S)
+    match = re.search(r"let\s+domain\s*=\s*\{(.*?)\n\s*\};", source, re.S)
     if not match:
         raise RuntimeError("Could not find the domain-name object in sketch.js")
-    names = re.findall(r"^\\s*([A-Za-z][A-Za-z0-9_]*)\\s*:", match.group(1), re.M)
+    names = re.findall(r"^\s*([A-Za-z][A-Za-z0-9_]*)\s*:", match.group(1), re.M)
     # Keep original displayed names, while avoiding duplicate case-insensitive entries.
     unique = {}
     for name in names:
@@ -85,7 +85,7 @@ def wiktionary_audio_candidates(title: str):
         if match:
             filename = urllib.parse.unquote(match.group(1)).replace("_", " ")
         else:
-            match = re.search(r"/([^/?#]+\\.ogg)(?:[?#]|$)", value, re.I)
+            match = re.search(r"/([^/?#]+\.ogg)(?:[?#]|$)", value, re.I)
             if not match:
                 continue
             filename = match.group(1)
@@ -199,8 +199,8 @@ def main():
         "items": items,
         "missing": missing,
     }
-    MANIFEST_PATH.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
-    print(f"\\nSaved {len(items)} recordings to {OUT_DIR}")
+    MANIFEST_PATH.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"\nSaved {len(items)} recordings to {OUT_DIR}")
     if missing:
         print("No suitable recording found for: " + ", ".join(missing))
         print("These names will use browser speech synthesis.")
