@@ -1305,6 +1305,7 @@ function createModal(d,i){
     var modal = new Modal(name,domain,description,children);
     d3.select('#modalContainer').html(modal.html);
     document.getElementById(name).style.display='block';
+    if (typeof loadWikimediaPronunciationForModal === "function") loadWikimediaPronunciationForModal(name);
 }
 
 //hightlight children for cards
@@ -1395,7 +1396,7 @@ function Modal(name,domain,description,children) {
 
     var zhName = zh ? zh.name : "中文名称待补充";
     var pronunciation = typeof getEnglishPronunciation === "function" ? getEnglishPronunciation(name) : null;
-    var ipa = pronunciation ? pronunciation.ipa : "IPA guide coming soon";
+    var ipa = pronunciation ? "Approx. English IPA: " + pronunciation.ipa : "English IPA not found yet";
     var zhDomain = zh ? zh.domain : "中文领域说明待补充";
     var zhDescription = zh ? zh.description : "该神祇的中文简介尚在翻译与人工审核中。";
     var status = zh && zh.status === "reviewed" ? "已人工审核" : "AI辅助翻译草稿，待人工审核";
@@ -1408,8 +1409,9 @@ function Modal(name,domain,description,children) {
                 <h2>${name}</h2>
                 <p class="zh-deity-name" lang="zh">${zhName}</p>
                 <div class="pronunciation-row" lang="en">
-                    <span class="pronunciation-ipa">IPA: ${ipa}</span>
-                    <button type="button" class="pronunciation-play" aria-label="Play English pronunciation of ${name}" onclick="speakDeityName('${name.replace(/'/g, "\\'")}', this)">▶ Play pronunciation</button>
+                    <span class="pronunciation-ipa" id="pronunciationIpa-${name}">${ipa}</span>
+                    <button type="button" class="pronunciation-play" aria-label="Play English pronunciation of ${name}" onclick="playDeityPronunciation('${name.replace(/'/g, "\\'")}', this)">▶ Play pronunciation</button>
+                    <small class="pronunciation-source" id="pronunciationSource-${name}"></small>
                 </div>
             </header>
             <div class="w3-container deity-modal-body">
