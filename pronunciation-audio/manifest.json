@@ -5,11 +5,11 @@
     "chaos": {
       "name": "Chaos",
       "path": "pronunciation-audio/chaos.ogg",
-      "source_file": "En-us-chaos.ogg",
-      "source_url": "https://commons.wikimedia.org/wiki/File:En-us-chaos.ogg",
-      "license": "Public domain",
-      "license_url": "",
-      "artist": "Dvortygirl",
+      "source_file": "LL-Q1860 (eng)-Naomi Persephone Amethyst (NaomiAmethyst)-Chaos.wav",
+      "source_url": "https://commons.wikimedia.org/wiki/File:LL-Q1860_%28eng%29-Naomi_Persephone_Amethyst_%28NaomiAmethyst%29-Chaos.wav",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "artist": "Speaker: Naomi Persephone Amethyst\nRecorder: NaomiAmethyst",
       "credit": "Own work",
       "attribution": ""
     },
