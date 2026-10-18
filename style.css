@@ -167,3 +167,122 @@ rect{
     fill:#474747;
     text-anchor: start;
 }
+
+
+/* Bilingual deity information */
+.deity-modal-content {
+    max-width: 900px;
+    margin: 3vh auto;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.deity-modal-content header {
+    padding-top: 18px;
+    padding-bottom: 12px;
+    background: #f6f4ec;
+}
+
+.deity-modal-content header h2 {
+    margin-right: 36px;
+}
+
+.zh-deity-name {
+    margin: -4px 0 0;
+    color: #394175;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.deity-modal-body {
+    max-height: 72vh;
+    overflow-y: auto;
+    padding-top: 10px;
+    padding-bottom: 22px;
+}
+
+.deity-language {
+    padding: 8px 0;
+    line-height: 1.75;
+    overflow-wrap: anywhere;
+}
+
+.deity-language h3 {
+    font-size: 1.15rem;
+    margin-bottom: 8px;
+}
+
+.deity-chinese {
+    font-family: -apple-system, BlinkMacSystemFont, "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+    font-size: 1rem;
+}
+
+.translation-status {
+    display: inline-block;
+    margin: 0 0 8px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: #f3eee0;
+    color: #62522e;
+    font-size: .8rem;
+}
+
+@media (max-width: 600px) {
+    .deity-modal-content {
+        width: 96%;
+        margin: 2vh auto;
+    }
+    .deity-modal-body {
+        max-height: 78vh;
+    }
+}
+
+
+/* Chinese labels shown directly on family-tree cards */
+.zh-card-name,
+.zh-card-domain {
+    fill: #FEFFF6;
+    font-family: -apple-system, BlinkMacSystemFont, "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+    font-size: 10px;
+    pointer-events: none;
+}
+
+.zh-card-domain {
+    font-size: 9px;
+    opacity: .92;
+}
+
+.card-bilingual-small {
+    font-size: 10px;
+}
+
+/* English pronunciation guide and audio playback in deity details */
+.pronunciation-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px 12px;
+    color: #394175;
+}
+.pronunciation-ipa {
+    font-family: "Noto Sans", sans-serif;
+    font-size: 1rem;
+}
+button.pronunciation-play {
+    position: static;
+    width: auto;
+    height: auto;
+    min-height: 36px;
+    padding: 7px 13px;
+    border: 0;
+    border-radius: 18px;
+    background: #394175;
+    color: white;
+    cursor: pointer;
+    font-size: .9rem;
+}
+button.pronunciation-play:disabled {
+    opacity: .65;
+    cursor: wait;
+}
