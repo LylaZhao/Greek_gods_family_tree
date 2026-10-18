@@ -126,7 +126,7 @@ async function playDeityPronunciation(name, button) {
   if (button) button.disabled = true;
   try {
     const result = await fetchWikimediaPronunciation(name);
-    updatePronunciationDisplay(name, result);
+    updatePronunciationDisplay(name, result, false);
     if (result && result.audioUrl) {
       const audio = new Audio(result.audioUrl);
       let finished = false;
@@ -136,38 +136,44 @@ async function playDeityPronunciation(name, button) {
       };
       audio.onended = restoreButton;
       audio.onerror = () => {
+        updatePronunciationDisplay(name, null, true);
         restoreButton();
         speakDeityName(name, null);
       };
       try {
         await audio.play();
+        updatePronunciationDisplay(name, result, true);
       } catch (error) {
+        updatePronunciationDisplay(name, null, true);
         restoreButton();
         speakDeityName(name, null);
       }
       return;
     }
+    updatePronunciationDisplay(name, null, true);
     speakDeityName(name, null);
   } finally {
     if (button) button.disabled = false;
   }
 }
 
-function updatePronunciationDisplay(name, result) {
+function updatePronunciationDisplay(name, result, audioPlayed = false) {
   const ipaElement = document.getElementById("pronunciationIpa-" + name);
   const source = document.getElementById("pronunciationSource-" + name);
   if (result && result.ipa && ipaElement) ipaElement.textContent = "English IPA: " + result.ipa;
   if (source) {
     source.replaceChildren();
-    if (result && result.sourceUrl) {
+    if (result && result.sourceUrl && (!result.audioUrl || audioPlayed)) {
       const link = document.createElement("a");
       link.href = result.sourceUrl;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
       link.textContent = result.sourceLabel;
       source.appendChild(link);
+    } else if (result && result.audioUrl && !audioPlayed) {
+      source.textContent = "English recording available; source confirmed when playback starts";
     } else {
-      source.textContent = "Using browser-generated pronunciation if no recording is available";
+      source.textContent = "Browser-generated pronunciation (no playable recording found)";
     }
   }
 }
