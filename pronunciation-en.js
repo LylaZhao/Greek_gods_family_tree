@@ -52,74 +52,34 @@ function speakDeityName(name, button) {
 }
 
 
-/* Read the English entry on Wiktionary itself. Its audio links point to
-   pronunciation files hosted on Wikimedia Commons. Use browser speech only if
-   the entry has no US-English recording or the file cannot play. */
-const wikimediaPronunciationCache = new Map();
+/* Pronunciation audio is bundled with the site. The browser reads only the
+   local manifest and local .ogg files; it does not query Wiktionary at playback time. */
+let localPronunciationManifestPromise;
+
+function normalizePronunciationKey(name) {
+  return String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
 
 async function fetchWikimediaPronunciation(name) {
-  const cacheKey = String(name || "").trim().toLowerCase();
-  if (wikimediaPronunciationCache.has(cacheKey)) return wikimediaPronunciationCache.get(cacheKey);
-
-  const request = (async () => {
-    try {
-      const title = String(name || "").trim().replace(/ /g, "_");
-      const apiUrl = "https://en.wiktionary.org/w/api.php?action=parse&page=" +
-        encodeURIComponent(title) + "&prop=text&format=json&formatversion=2&origin=*";
-      const response = await fetch(apiUrl);
-      if (!response.ok) return null;
-      const data = await response.json();
-      const html = data && data.parse && data.parse.text;
-      if (!html || typeof html !== "string") return null;
-
-      const doc = new DOMParser().parseFromString(html, "text/html");
-      const audioCandidates = [];
-      // Wiktionary's pronunciation templates expose the linked Commons filename.
-      for (const link of doc.querySelectorAll('a[href*="/wiki/File:"], a[href*="/wiki/Media:"]')) {
-        const href = link.getAttribute("href") || "";
-        const match = href.match(/\/(?:wiki)\/(?:File|Media):([^?#]+)/i);
-        if (!match) continue;
-        let fileName = decodeURIComponent(match[1]).replace(/_/g, " ");
-        if (!/\.ogg$/i.test(fileName)) continue;
-        if (/^en-us-/i.test(fileName)) audioCandidates.unshift(fileName);
-        else if (/^en-/i.test(fileName) || /ll-q1860\s*\(eng\)/i.test(fileName)) audioCandidates.push(fileName);
-      }
-
-      // Some rendered entries expose the direct audio source instead of a File link.
-      for (const audio of doc.querySelectorAll("audio source[src], audio[src]")) {
-        const src = audio.getAttribute("src") || "";
-        if (!src) continue;
-        const fileMatch = src.match(/\/([^/?#]+\.ogg)(?:[?#]|$)/i);
-        if (fileMatch) {
-          const fileName = decodeURIComponent(fileMatch[1]);
-          if (/^en-us-/i.test(fileName)) audioCandidates.unshift(fileName);
-          else if (/^en-/i.test(fileName) || /ll-q1860\s*\(eng\)/i.test(fileName)) audioCandidates.push(fileName);
-        }
-      }
-
-      const audioFile = [...new Set(audioCandidates)][0] || "";
-      const ipaNode = doc.querySelector(".IPA");
-      const ipa = ipaNode ? (ipaNode.textContent || "").trim() : "";
-      if (!audioFile && !ipa) return null;
-
-      return {
-        ipa,
-        audioUrl: audioFile
-          ? "https://commons.wikimedia.org/wiki/Special:FilePath/" + encodeURIComponent(audioFile)
-          : "",
-        sourceUrl: audioFile
-          ? "https://commons.wikimedia.org/wiki/File:" + encodeURIComponent(audioFile.replace(/ /g, "_"))
-          : "https://en.wiktionary.org/wiki/" + encodeURIComponent(title),
-        sourceLabel: audioFile ? "Audio via Wiktionary / Wikimedia Commons" : "IPA via Wiktionary",
-        wiktionaryUrl: "https://en.wiktionary.org/wiki/" + encodeURIComponent(title)
-      };
-    } catch (error) {
-      return null;
-    }
-  })();
-
-  wikimediaPronunciationCache.set(cacheKey, request);
-  return request;
+  if (!localPronunciationManifestPromise) {
+    localPronunciationManifestPromise = fetch("pronunciation-audio/manifest.json")
+      .then(response => response.ok ? response.json() : null)
+      .catch(() => null);
+  }
+  const manifest = await localPronunciationManifestPromise;
+  const key = normalizePronunciationKey(name);
+  const item = manifest && manifest.items && manifest.items[key];
+  if (!item) {
+    const fallback = getEnglishPronunciation(name);
+    return fallback ? { ipa: fallback.ipa, audioUrl: "", sourceUrl: "", sourceLabel: "" } : null;
+  }
+  return {
+    ipa: item.ipa || (getEnglishPronunciation(name) || {}).ipa || "",
+    audioUrl: item.path || "",
+    sourceUrl: item.source_url || "",
+    sourceLabel: "Audio: Wikimedia Commons (" + (item.license || "license details") + ")",
+    wiktionaryUrl: "https://en.wiktionary.org/wiki/" + encodeURIComponent(item.name || name)
+  };
 }
 
 async function playDeityPronunciation(name, button) {
@@ -131,8 +91,9 @@ async function playDeityPronunciation(name, button) {
       const audio = new Audio(result.audioUrl);
       let finished = false;
       const restoreButton = () => {
-        if (!finished && button) button.disabled = false;
+        if (finished) return;
         finished = true;
+        if (button) button.disabled = false;
       };
       audio.onended = restoreButton;
       audio.onerror = () => {
@@ -145,12 +106,11 @@ async function playDeityPronunciation(name, button) {
         updatePronunciationDisplay(name, result, true);
       } catch (error) {
         updatePronunciationDisplay(name, null, true);
-        restoreButton();
         speakDeityName(name, null);
       }
       return;
     }
-    updatePronunciationDisplay(name, null, true);
+    updatePronunciationDisplay(name, result, true);
     speakDeityName(name, null);
   } finally {
     if (button) button.disabled = false;
@@ -163,7 +123,7 @@ function updatePronunciationDisplay(name, result, audioPlayed = false) {
   if (result && result.ipa && ipaElement) ipaElement.textContent = "English IPA: " + result.ipa;
   if (source) {
     source.replaceChildren();
-    if (result && result.sourceUrl && (!result.audioUrl || audioPlayed)) {
+    if (result && result.sourceUrl && result.audioUrl && audioPlayed) {
       const link = document.createElement("a");
       link.href = result.sourceUrl;
       link.target = "_blank";
@@ -171,14 +131,14 @@ function updatePronunciationDisplay(name, result, audioPlayed = false) {
       link.textContent = result.sourceLabel;
       source.appendChild(link);
     } else if (result && result.audioUrl && !audioPlayed) {
-      source.textContent = "English recording available; source confirmed when playback starts";
+      source.textContent = "Bundled English recording";
     } else {
-      source.textContent = "Browser-generated pronunciation (no playable recording found)";
+      source.textContent = "Browser-generated pronunciation (no bundled recording found)";
     }
   }
 }
 
 async function loadWikimediaPronunciationForModal(name) {
   const result = await fetchWikimediaPronunciation(name);
-  updatePronunciationDisplay(name, result);
+  updatePronunciationDisplay(name, result, false);
 }
