@@ -255,3 +255,34 @@ rect{
 .card-bilingual-small {
     font-size: 10px;
 }
+
+/* English pronunciation guide and audio playback in deity details */
+.pronunciation-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px 12px;
+    color: #394175;
+}
+.pronunciation-ipa {
+    font-family: "Noto Sans", sans-serif;
+    font-size: 1rem;
+}
+button.pronunciation-play {
+    position: static;
+    width: auto;
+    height: auto;
+    min-height: 36px;
+    padding: 7px 13px;
+    border: 0;
+    border-radius: 18px;
+    background: #394175;
+    color: white;
+    cursor: pointer;
+    font-size: .9rem;
+}
+button.pronunciation-play:disabled {
+    opacity: .65;
+    cursor: wait;
+}
