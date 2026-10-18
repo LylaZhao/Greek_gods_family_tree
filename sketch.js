@@ -1394,6 +1394,8 @@ function Modal(name,domain,description,children) {
     }
 
     var zhName = zh ? zh.name : "中文名称待补充";
+    var pronunciation = typeof getEnglishPronunciation === "function" ? getEnglishPronunciation(name) : null;
+    var ipa = pronunciation ? pronunciation.ipa : "IPA guide coming soon";
     var zhDomain = zh ? zh.domain : "中文领域说明待补充";
     var zhDescription = zh ? zh.description : "该神祇的中文简介尚在翻译与人工审核中。";
     var status = zh && zh.status === "reviewed" ? "已人工审核" : "AI辅助翻译草稿，待人工审核";
@@ -1405,6 +1407,10 @@ function Modal(name,domain,description,children) {
                 <span onclick="document.getElementById('${name}').style.display='none'" class="w3-button w3-display-topright">&times;</span>
                 <h2>${name}</h2>
                 <p class="zh-deity-name" lang="zh">${zhName}</p>
+                <div class="pronunciation-row" lang="en">
+                    <span class="pronunciation-ipa">IPA: ${ipa}</span>
+                    <button type="button" class="pronunciation-play" aria-label="Play English pronunciation of ${name}" onclick="speakDeityName('${name.replace(/'/g, "\\'")}', this)">▶ Play pronunciation</button>
+                </div>
             </header>
             <div class="w3-container deity-modal-body">
                 <section class="deity-language deity-english" lang="en">
