@@ -29,6 +29,24 @@ USER_AGENT = "GreekGodsFamilyTreePronunciationAssets/1.0 (open-source educationa
 WIKTIONARY_API = "https://en.wiktionary.org/w/api.php"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 
+# Names in the site's data are not always the canonical Wiktionary headword.
+# Keep these aliases explicit so we don't accidentally download a homophone.
+ALIASES = {
+    "ErosElder": ["Eros"],
+    "Cerebus": ["Cerberus"],
+    "Oneriroi": ["Oneiroi", "Oneiros"],
+    "Mnmosyne": ["Mnemosyne"],
+    "Methis": ["Metis"],
+    "Giantes": ["Gigantes"],
+    "Hermaphodites": ["Hermaphroditus"],
+    "Uranus": ["Uranus", "Ouranos"],
+    "Gaia": ["Gaia", "Gaea"],
+    "Kronos": ["Kronos", "Cronus"],
+    "Tartarus": ["Tartarus", "Tartaros"],
+    "Erebus": ["Erebus", "Erebos"],
+    "Tyche": ["Tyche", "Tykhe"],
+}
+
 
 class AudioLinkParser(HTMLParser):
     """Capture rendered audio sources and file links, not only /wiki/File: links."""
@@ -201,7 +219,15 @@ def main():
         key = re.sub(r"[^a-z0-9]+", "", name.lower())
         print(f"[{index}/{len(names)}] {name}")
         try:
-            candidates = wiktionary_audio_candidates(name)
+            search_terms = list(dict.fromkeys([name] + ALIASES.get(name, [])))
+            candidates = []
+            for search_term in search_terms:
+                try:
+                    candidates.extend(wiktionary_audio_candidates(search_term))
+                except (urllib.error.URLError, TimeoutError, ValueError, KeyError) as exc:
+                    print(f"  Wiktionary lookup failed for {search_term}: {exc}", file=sys.stderr)
+            # Deduplicate without losing the en-US-first ordering from each entry.
+            candidates = list(dict.fromkeys(candidates))
             selected = None
             info = None
             for candidate in candidates:
@@ -217,10 +243,13 @@ def main():
                 # Wiktionary entries may omit an audio widget even if Commons has
                 # a suitable pronunciation recording. Search Commons as a fallback.
                 try:
-                    for candidate in commons_audio_search_candidates(name):
-                        candidate_info = commons_file_info(candidate)
-                        if candidate_info:
-                            selected, info = candidate, candidate_info
+                    for search_term in search_terms:
+                        for candidate in commons_audio_search_candidates(search_term):
+                            candidate_info = commons_file_info(candidate)
+                            if candidate_info:
+                                selected, info = candidate, candidate_info
+                                break
+                        if selected:
                             break
                 except (urllib.error.URLError, TimeoutError, ValueError, KeyError) as exc:
                     print(f"  Commons fallback search failed: {exc}", file=sys.stderr)
