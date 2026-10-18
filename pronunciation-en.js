@@ -79,41 +79,52 @@ async function fetchWikimediaPronunciation(name) {
       const entityData = await entityResponse.json();
       const entity = entityData.entities && entityData.entities[match.id];
       const claims = entity && entity.claims ? entity.claims : {};
-      const isEnglish = statement => {
-        const languages = statement.qualifiers && statement.qualifiers.P407;
-        return Array.isArray(languages) && languages.some(value =>
-          value.datavalue && value.datavalue.value && value.datavalue.value.id === "Q1860"
+      const hasQualifierItem = (statement, property, ids) => {
+        const values = statement.qualifiers && statement.qualifiers[property];
+        return Array.isArray(values) && values.some(value =>
+          value.datavalue && value.datavalue.value && ids.includes(value.datavalue.value.id)
         );
       };
+      const isEnglish = statement => hasQualifierItem(statement, "P407", ["Q1860"]);
+      const isAmericanEnglish = statement => hasQualifierItem(statement, "P5237", ["Q7979"]);
+      const statementValue = statement => statement.mainsnak && statement.mainsnak.datavalue
+        ? statement.mainsnak.datavalue.value : null;
 
-      let ipa = "";
-      for (const statement of (claims.P898 || [])) {
-        if (isEnglish(statement) && statement.mainsnak && statement.mainsnak.datavalue) {
-          ipa = String(statement.mainsnak.datavalue.value || "");
-          if (ipa) break;
-        }
+      // Prefer explicitly English/American-English IPA. If the item has one
+      // unqualified transcription only, use it rather than hiding available data.
+      const ipaStatements = claims.P898 || [];
+      let ipaStatement = ipaStatements.find(s => isEnglish(s) || isAmericanEnglish(s));
+      if (!ipaStatement && ipaStatements.length === 1 &&
+          !((ipaStatements[0].qualifiers || {}).P407) &&
+          !((ipaStatements[0].qualifiers || {}).P5237)) {
+        ipaStatement = ipaStatements[0];
       }
+      const ipa = ipaStatement ? String(statementValue(ipaStatement) || "") : "";
 
+      const isEnglishFilename = value =>
+        /^(?:en(?:[-_]|\\.)|ll-q1860\\s*\\(eng\\)-)/i.test(value);
       let audioFile = "";
-      for (const statement of (claims.P443 || [])) {
-        const value = statement.mainsnak && statement.mainsnak.datavalue &&
-          statement.mainsnak.datavalue.value;
-        if (!value || typeof value !== "string") continue;
-        const filenameLooksEnglish = /^(en[-_]|en-us[-_]|ll-q1860\s*\(eng\))/i.test(value);
-        if (isEnglish(statement) || filenameLooksEnglish) {
-          audioFile = value;
-          break;
+      for (const property of ["P443", "P989"]) {
+        for (const statement of (claims[property] || [])) {
+          const value = statementValue(statement);
+          if (typeof value !== "string") continue;
+          if (isEnglish(statement) || isAmericanEnglish(statement) || isEnglishFilename(value)) {
+            audioFile = value;
+            break;
+          }
         }
+        if (audioFile) break;
       }
 
       if (!ipa && !audioFile) return null;
+      const encodedFile = audioFile ? audioFile.replace(/ /g, "_") : "";
       return {
         ipa: ipa,
         audioUrl: audioFile
           ? "https://commons.wikimedia.org/wiki/Special:FilePath/" + encodeURIComponent(audioFile)
           : "",
         sourceUrl: audioFile
-          ? "https://commons.wikimedia.org/wiki/File:" + encodeURIComponent(audioFile.replace(/ /g, "_"))
+          ? "https://commons.wikimedia.org/wiki/File:" + encodeURIComponent(encodedFile)
           : "https://www.wikidata.org/wiki/" + match.id,
         sourceLabel: audioFile ? "Audio via Wikimedia Commons" : "IPA via Wikidata"
       };
