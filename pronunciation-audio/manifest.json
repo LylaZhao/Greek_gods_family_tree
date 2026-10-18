@@ -2,6 +2,17 @@
   "generated_by": "scripts/download_pronunciations.py",
   "source_policy": "English recordings from Wiktionary entries, audio hosted by Wikimedia Commons; en-US preferred.",
   "items": {
+    "chaos": {
+      "name": "Chaos",
+      "path": "pronunciation-audio/chaos.ogg",
+      "source_file": "En-us-chaos.ogg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:En-us-chaos.ogg",
+      "license": "Public domain",
+      "license_url": "",
+      "artist": "Dvortygirl",
+      "credit": "Own work",
+      "attribution": ""
+    },
     "gaia": {
       "name": "Gaia",
       "path": "pronunciation-audio/gaia.ogg",
@@ -26,7 +37,6 @@
     }
   },
   "missing": [
-    "Chaos",
     "Tartarus",
     "ErosElder",
     "Erebus",
