@@ -1380,43 +1380,52 @@ document.getElementById('legend').style.display='block';
 
 //make Modal object
 function Modal(name,domain,description,children) {
-    
-//   var source;
-//   if(thumbnail === ""){
-//        source = 'img/bred_sheeran.jpg'
-//    } else{
-//        source = thumbnail}; 
+    var zh = (typeof translationsZh !== "undefined" && translationsZh[name]) ? translationsZh[name] : null;
     var list = "";
-    
-    function listmaker(){
-        if(children.length === 0){
-            list = "<li>"+name+ " doesn't have any children"+"</li>"
-        }
-        for(let i = 0; i<children.length;i++){
-            var child = "<li>"+children[i]+"</li>"
-            list += child;
+
+    if (children.length === 0) {
+        list = "<li>" + name + (zh ? "（" + zh.name + "）" : "") + " doesn't have any children / 暂无子女</li>";
+    } else {
+        for (let i = 0; i < children.length; i++) {
+            var childName = children[i];
+            var childZh = (typeof translationsZh !== "undefined" && translationsZh[childName]) ? translationsZh[childName].name : "";
+            list += "<li>" + childName + (childZh ? " — " + childZh : "") + "</li>";
         }
     }
-    
-    listmaker();
-    
-    this.html = 
+
+    var zhName = zh ? zh.name : "中文名称待补充";
+    var zhDomain = zh ? zh.domain : "中文领域说明待补充";
+    var zhDescription = zh ? zh.description : "该神祇的中文简介尚在翻译与人工审核中。";
+    var status = zh && zh.status === "reviewed" ? "已人工审核" : "AI辅助翻译草稿，待人工审核";
+
+    this.html =
     `<div id="${name}" class="w3-modal">
-        <div class="w3-modal-content">
-            <header class="w3-container"> 
-                <span onclick="document.getElementById('${name}').style.display='none'"class="w3-button w3-display-topright">&times;</span>
+        <div class="w3-modal-content deity-modal-content">
+            <header class="w3-container">
+                <span onclick="document.getElementById('${name}').style.display='none'" class="w3-button w3-display-topright">&times;</span>
                 <h2>${name}</h2>
+                <p class="zh-deity-name" lang="zh">${zhName}</p>
             </header>
-          <div class="w3-container">
-            <h4>${domain}</h4>
-            <p>${description}</p>
-            <h4>${name}'s children on this chart include:</h4>
-            <ul>${list}</ul>
-          </div>
+            <div class="w3-container deity-modal-body">
+                <section class="deity-language deity-english" lang="en">
+                    <h4>Domain: ${domain}</h4>
+                    <h3>About ${name}</h3>
+                    <p>${description}</p>
+                </section>
+                <hr>
+                <section class="deity-language deity-chinese" lang="zh-Hans">
+                    <p class="translation-status">${status}</p>
+                    <h4>领域：${zhDomain}</h4>
+                    <h3>关于${zhName}</h3>
+                    <p>${zhDescription}</p>
+                </section>
+                <hr>
+                <h4>${name}'s children on this chart include / 图中所示子女：</h4>
+                <ul>${list}</ul>
+            </div>
         </div>
     </div>`;
 }
-
 //make controls Modal object
 function controlsModal() {
   this.html = 
