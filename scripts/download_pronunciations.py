@@ -107,7 +107,11 @@ def wiktionary_audio_candidates(title: str):
     candidates = []
     # Wikitext often exposes the exact filename more reliably than the rendered UI.
     patterns = [
-        r"\{\{\s*(?:audio|audio-ipa)\s*\|[^|}]*\|\s*([^|}]+\.ogg)",
+        # Current Wiktionary convention: {{audio|en-us-Word.ogg|Audio (US)}}.
+        r"\{\{\s*(?:audio|audio-ipa)\s*\|\s*([^|}]+\.ogg)",
+        # Also accept older/alternate convention: {{audio|en|Word.ogg}}.
+        r"\{\{\s*(?:audio|audio-ipa)\s*\|[^|}]+\|\s*([^|}]+\.ogg)",
+        # File references embedded directly in the wikitext.
         r"\b(?:en-us|en-uk|en-gb|en-au|en-ca|en)-[^|}\]<>]+?\.ogg",
     ]
     for pattern in patterns:
