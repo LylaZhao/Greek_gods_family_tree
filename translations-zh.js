@@ -1,6 +1,13 @@
 /*
  * Chinese translations for Greek Gods Family Tree.
- * AI-assisted draft; review mythology terminology and factual nuances before marking reviewed.
+ * Chinese deity-name spellings are aligned where possible with published Chinese editions
+ * of Hesiod's Theogony and reference texts. Transliteration variants exist across editions;
+ * less-common names are provisional and should be checked against the cited references.
+ * Reference: Wu Yaling, Theogony annotated Chinese edition, Huaxia Press (2022):
+ * https://www.hxph.com.cn/newBooks/9389.jhtml
+ * Cross-check: Chinese Theogony text and name usage:
+ * https://reader.humanitext.ai/zh/library/tlg0020.tlg001.humanitext-grc2
+ * Names and descriptions remain subject to specialist review.
  * Keys must match deity identifiers used in sketch.js.
  */
 const translationsZh = {
