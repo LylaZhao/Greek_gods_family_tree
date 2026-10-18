@@ -24,6 +24,17 @@
       "credit": "Own work",
       "attribution": ""
     },
+    "tartarus": {
+      "name": "Tartarus",
+      "path": "pronunciation-audio/tartarus.ogg",
+      "source_file": "LL-Q1860 (eng)-Flame, not lame-Tartarus.wav",
+      "source_url": "https://commons.wikimedia.org/wiki/File:LL-Q1860_%28eng%29-Flame%2C_not_lame-Tartarus.wav",
+      "license": "CC0",
+      "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "artist": "Speaker: Flame, not lame\nRecorder: Flame, not lame",
+      "credit": "Own work",
+      "attribution": ""
+    },
     "uranus": {
       "name": "Uranus",
       "path": "pronunciation-audio/uranus.ogg",
@@ -37,7 +48,6 @@
     }
   },
   "missing": [
-    "Tartarus",
     "ErosElder",
     "Erebus",
     "Nyx",
