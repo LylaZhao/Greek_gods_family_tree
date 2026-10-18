@@ -52,8 +52,9 @@ function speakDeityName(name, button) {
 }
 
 
-/* Look up English IPA and recordings from Wikidata/Wikimedia Commons.
-   Browser speech synthesis remains the fallback when no suitable recording exists. */
+/* Read the English entry on Wiktionary itself. Its audio links point to
+   pronunciation files hosted on Wikimedia Commons. Use browser speech only if
+   the entry has no US-English recording or the file cannot play. */
 const wikimediaPronunciationCache = new Map();
 
 async function fetchWikimediaPronunciation(name) {
@@ -62,71 +63,55 @@ async function fetchWikimediaPronunciation(name) {
 
   const request = (async () => {
     try {
-      const searchUrl = "https://www.wikidata.org/w/api.php?action=wbsearchentities&search=" +
-        encodeURIComponent(name) + "&language=en&uselang=en&type=item&limit=10&format=json&origin=*";
-      const searchResponse = await fetch(searchUrl);
-      if (!searchResponse.ok) return null;
-      const searchData = await searchResponse.json();
-      const match = (searchData.search || []).find(item =>
-        String(item.label || "").trim().toLowerCase() === cacheKey
-      );
-      if (!match) return null;
+      const title = String(name || "").trim().replace(/ /g, "_");
+      const apiUrl = "https://en.wiktionary.org/w/api.php?action=parse&page=" +
+        encodeURIComponent(title) + "&prop=text&format=json&formatversion=2&origin=*";
+      const response = await fetch(apiUrl);
+      if (!response.ok) return null;
+      const data = await response.json();
+      const html = data && data.parse && data.parse.text;
+      if (!html || typeof html !== "string") return null;
 
-      const entityUrl = "https://www.wikidata.org/w/api.php?action=wbgetentities&ids=" +
-        encodeURIComponent(match.id) + "&props=claims&format=json&origin=*";
-      const entityResponse = await fetch(entityUrl);
-      if (!entityResponse.ok) return null;
-      const entityData = await entityResponse.json();
-      const entity = entityData.entities && entityData.entities[match.id];
-      const claims = entity && entity.claims ? entity.claims : {};
-      const hasQualifierItem = (statement, property, ids) => {
-        const values = statement.qualifiers && statement.qualifiers[property];
-        return Array.isArray(values) && values.some(value =>
-          value.datavalue && value.datavalue.value && ids.includes(value.datavalue.value.id)
-        );
-      };
-      const isEnglish = statement => hasQualifierItem(statement, "P407", ["Q1860"]);
-      const isAmericanEnglish = statement => hasQualifierItem(statement, "P5237", ["Q7979"]);
-      const statementValue = statement => statement.mainsnak && statement.mainsnak.datavalue
-        ? statement.mainsnak.datavalue.value : null;
-
-      // Prefer explicitly English/American-English IPA. If the item has one
-      // unqualified transcription only, use it rather than hiding available data.
-      const ipaStatements = claims.P898 || [];
-      let ipaStatement = ipaStatements.find(s => isEnglish(s) || isAmericanEnglish(s));
-      if (!ipaStatement && ipaStatements.length === 1 &&
-          !((ipaStatements[0].qualifiers || {}).P407) &&
-          !((ipaStatements[0].qualifiers || {}).P5237)) {
-        ipaStatement = ipaStatements[0];
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const audioCandidates = [];
+      // Wiktionary's pronunciation templates expose the linked Commons filename.
+      for (const link of doc.querySelectorAll('a[href*="/wiki/File:"], a[href*="/wiki/Media:"]')) {
+        const href = link.getAttribute("href") || "";
+        const match = href.match(/\/(?:wiki)\/(?:File|Media):([^?#]+)/i);
+        if (!match) continue;
+        let fileName = decodeURIComponent(match[1]).replace(/_/g, " ");
+        if (!/\.ogg$/i.test(fileName)) continue;
+        if (/^en-us-/i.test(fileName)) audioCandidates.unshift(fileName);
+        else if (/^en-/i.test(fileName) || /ll-q1860\s*\(eng\)/i.test(fileName)) audioCandidates.push(fileName);
       }
-      const ipa = ipaStatement ? String(statementValue(ipaStatement) || "") : "";
 
-      const isEnglishFilename = value =>
-        /^(?:en(?:[-_]|\\.)|ll-q1860\\s*\\(eng\\)-)/i.test(value);
-      let audioFile = "";
-      for (const property of ["P443", "P989"]) {
-        for (const statement of (claims[property] || [])) {
-          const value = statementValue(statement);
-          if (typeof value !== "string") continue;
-          if (isEnglish(statement) || isAmericanEnglish(statement) || isEnglishFilename(value)) {
-            audioFile = value;
-            break;
-          }
+      // Some rendered entries expose the direct audio source instead of a File link.
+      for (const audio of doc.querySelectorAll("audio source[src], audio[src]")) {
+        const src = audio.getAttribute("src") || "";
+        if (!src) continue;
+        const fileMatch = src.match(/\/([^/?#]+\.ogg)(?:[?#]|$)/i);
+        if (fileMatch) {
+          const fileName = decodeURIComponent(fileMatch[1]);
+          if (/^en-us-/i.test(fileName)) audioCandidates.unshift(fileName);
+          else if (/^en-/i.test(fileName) || /ll-q1860\s*\(eng\)/i.test(fileName)) audioCandidates.push(fileName);
         }
-        if (audioFile) break;
       }
 
-      if (!ipa && !audioFile) return null;
-      const encodedFile = audioFile ? audioFile.replace(/ /g, "_") : "";
+      const audioFile = [...new Set(audioCandidates)][0] || "";
+      const ipaNode = doc.querySelector(".IPA");
+      const ipa = ipaNode ? (ipaNode.textContent || "").trim() : "";
+      if (!audioFile && !ipa) return null;
+
       return {
-        ipa: ipa,
+        ipa,
         audioUrl: audioFile
           ? "https://commons.wikimedia.org/wiki/Special:FilePath/" + encodeURIComponent(audioFile)
           : "",
         sourceUrl: audioFile
-          ? "https://commons.wikimedia.org/wiki/File:" + encodeURIComponent(encodedFile)
-          : "https://www.wikidata.org/wiki/" + match.id,
-        sourceLabel: audioFile ? "Audio via Wikimedia Commons" : "IPA via Wikidata"
+          ? "https://commons.wikimedia.org/wiki/File:" + encodeURIComponent(audioFile.replace(/ /g, "_"))
+          : "https://en.wiktionary.org/wiki/" + encodeURIComponent(title),
+        sourceLabel: audioFile ? "Audio via Wiktionary / Wikimedia Commons" : "IPA via Wiktionary",
+        wiktionaryUrl: "https://en.wiktionary.org/wiki/" + encodeURIComponent(title)
       };
     } catch (error) {
       return null;
@@ -144,37 +129,46 @@ async function playDeityPronunciation(name, button) {
     updatePronunciationDisplay(name, result);
     if (result && result.audioUrl) {
       const audio = new Audio(result.audioUrl);
-      audio.onended = () => { if (button) button.disabled = false; };
+      let finished = false;
+      const restoreButton = () => {
+        if (!finished && button) button.disabled = false;
+        finished = true;
+      };
+      audio.onended = restoreButton;
       audio.onerror = () => {
-        if (button) button.disabled = false;
+        restoreButton();
         speakDeityName(name, null);
       };
       try {
         await audio.play();
       } catch (error) {
-        if (button) button.disabled = false;
+        restoreButton();
         speakDeityName(name, null);
       }
       return;
     }
     speakDeityName(name, null);
   } finally {
-    if (button && button.disabled) button.disabled = false;
+    if (button) button.disabled = false;
   }
 }
 
 function updatePronunciationDisplay(name, result) {
-  if (!result) return;
   const ipaElement = document.getElementById("pronunciationIpa-" + name);
   const source = document.getElementById("pronunciationSource-" + name);
-  if (result.ipa && ipaElement) ipaElement.textContent = "English IPA: " + result.ipa;
-  if (result.sourceUrl && source) {
-    const link = document.createElement("a");
-    link.href = result.sourceUrl;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = result.sourceLabel;
-    source.replaceChildren(link);
+  if (result && result.ipa && ipaElement) ipaElement.textContent = "English IPA: " + result.ipa;
+  if (source) {
+    source.replaceChildren();
+    if (result && result.sourceUrl) {
+      const link = document.createElement("a");
+      link.href = result.sourceUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = result.sourceLabel;
+      source.appendChild(link);
+    } else {
+      source.textContent = "Using browser-generated pronunciation if no recording is available";
+    }
   }
 }
 
