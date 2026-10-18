@@ -236,3 +236,22 @@ rect{
         max-height: 78vh;
     }
 }
+
+
+/* Chinese labels shown directly on family-tree cards */
+.zh-card-name,
+.zh-card-domain {
+    fill: #FEFFF6;
+    font-family: -apple-system, BlinkMacSystemFont, "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+    font-size: 10px;
+    pointer-events: none;
+}
+
+.zh-card-domain {
+    font-size: 9px;
+    opacity: .92;
+}
+
+.card-bilingual-small {
+    font-size: 10px;
+}
