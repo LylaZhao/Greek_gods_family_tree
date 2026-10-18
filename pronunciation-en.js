@@ -1,6 +1,6 @@
-/* English IPA guides for Greek mythology names.
- * These are practical General American approximations; pronunciations vary by dialect and reference.
- * Audio uses the browser's built-in speech synthesis voice, not a studio recording.
+/* Approximate General American IPA fallback for Greek mythology names.
+ * English IPA and pronunciation audio are looked up from Wikidata/Wikimedia Commons when available.
+ * Browser speech synthesis is used when no suitable English recording is found.
  */
 const pronunciationEn = {
   chaos:"/ˈkeɪ.ɑːs/", gaia:"/ˈɡaɪ.ə/", tartarus:"/ˈtɑːr.tər.əs/", eroselder:"/ˈɪr.ɑːs/",
@@ -49,4 +49,125 @@ function speakDeityName(name, button) {
     utterance.onerror = () => { button.disabled = false; };
   }
   window.speechSynthesis.speak(utterance);
+}
+
+
+/* Look up English IPA and recordings from Wikidata/Wikimedia Commons.
+   Browser speech synthesis remains the fallback when no suitable recording exists. */
+const wikimediaPronunciationCache = new Map();
+
+async function fetchWikimediaPronunciation(name) {
+  const cacheKey = String(name || "").trim().toLowerCase();
+  if (wikimediaPronunciationCache.has(cacheKey)) return wikimediaPronunciationCache.get(cacheKey);
+
+  const request = (async () => {
+    try {
+      const searchUrl = "https://www.wikidata.org/w/api.php?action=wbsearchentities&search=" +
+        encodeURIComponent(name) + "&language=en&uselang=en&type=item&limit=10&format=json&origin=*";
+      const searchResponse = await fetch(searchUrl);
+      if (!searchResponse.ok) return null;
+      const searchData = await searchResponse.json();
+      const match = (searchData.search || []).find(item =>
+        String(item.label || "").trim().toLowerCase() === cacheKey
+      );
+      if (!match) return null;
+
+      const entityUrl = "https://www.wikidata.org/w/api.php?action=wbgetentities&ids=" +
+        encodeURIComponent(match.id) + "&props=claims&format=json&origin=*";
+      const entityResponse = await fetch(entityUrl);
+      if (!entityResponse.ok) return null;
+      const entityData = await entityResponse.json();
+      const entity = entityData.entities && entityData.entities[match.id];
+      const claims = entity && entity.claims ? entity.claims : {};
+      const isEnglish = statement => {
+        const languages = statement.qualifiers && statement.qualifiers.P407;
+        return Array.isArray(languages) && languages.some(value =>
+          value.datavalue && value.datavalue.value && value.datavalue.value.id === "Q1860"
+        );
+      };
+
+      let ipa = "";
+      for (const statement of (claims.P898 || [])) {
+        if (isEnglish(statement) && statement.mainsnak && statement.mainsnak.datavalue) {
+          ipa = String(statement.mainsnak.datavalue.value || "");
+          if (ipa) break;
+        }
+      }
+
+      let audioFile = "";
+      for (const statement of (claims.P443 || [])) {
+        const value = statement.mainsnak && statement.mainsnak.datavalue &&
+          statement.mainsnak.datavalue.value;
+        if (!value || typeof value !== "string") continue;
+        const filenameLooksEnglish = /^(en[-_]|en-us[-_]|ll-q1860\s*\(eng\))/i.test(value);
+        if (isEnglish(statement) || filenameLooksEnglish) {
+          audioFile = value;
+          break;
+        }
+      }
+
+      if (!ipa && !audioFile) return null;
+      return {
+        ipa: ipa,
+        audioUrl: audioFile
+          ? "https://commons.wikimedia.org/wiki/Special:FilePath/" + encodeURIComponent(audioFile)
+          : "",
+        sourceUrl: audioFile
+          ? "https://commons.wikimedia.org/wiki/File:" + encodeURIComponent(audioFile.replace(/ /g, "_"))
+          : "https://www.wikidata.org/wiki/" + match.id,
+        sourceLabel: audioFile ? "Audio via Wikimedia Commons" : "IPA via Wikidata"
+      };
+    } catch (error) {
+      return null;
+    }
+  })();
+
+  wikimediaPronunciationCache.set(cacheKey, request);
+  return request;
+}
+
+async function playDeityPronunciation(name, button) {
+  if (button) button.disabled = true;
+  try {
+    const result = await fetchWikimediaPronunciation(name);
+    updatePronunciationDisplay(name, result);
+    if (result && result.audioUrl) {
+      const audio = new Audio(result.audioUrl);
+      audio.onended = () => { if (button) button.disabled = false; };
+      audio.onerror = () => {
+        if (button) button.disabled = false;
+        speakDeityName(name, null);
+      };
+      try {
+        await audio.play();
+      } catch (error) {
+        if (button) button.disabled = false;
+        speakDeityName(name, null);
+      }
+      return;
+    }
+    speakDeityName(name, null);
+  } finally {
+    if (button && button.disabled) button.disabled = false;
+  }
+}
+
+function updatePronunciationDisplay(name, result) {
+  if (!result) return;
+  const ipaElement = document.getElementById("pronunciationIpa-" + name);
+  const source = document.getElementById("pronunciationSource-" + name);
+  if (result.ipa && ipaElement) ipaElement.textContent = "English IPA: " + result.ipa;
+  if (result.sourceUrl && source) {
+    const link = document.createElement("a");
+    link.href = result.sourceUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = result.sourceLabel;
+    source.replaceChildren(link);
+  }
+}
+
+async function loadWikimediaPronunciationForModal(name) {
+  const result = await fetchWikimediaPronunciation(name);
+  updatePronunciationDisplay(name, result);
 }
